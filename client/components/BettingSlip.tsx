@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { X, TrendingUp, Wallet } from 'lucide-react';
+import { X, TrendingUp, Wallet, RefreshCw } from 'lucide-react';
 import { Match, Result, BetData } from '@/types/contract';
 
 interface BettingSlipProps {
@@ -13,6 +13,7 @@ interface BettingSlipProps {
   matches: Match[];
   onRemoveBet: (matchId: number) => void;
   onPlaceBet: (betData: BetData) => void;
+  isPlacing?: boolean;
 }
 
 const resultLabels = {
@@ -21,22 +22,14 @@ const resultLabels = {
   [Result.Draw]: 'Draw'
 };
 
-export default function BettingSlip({ selectedBets, matches, onRemoveBet, onPlaceBet }: BettingSlipProps) {
+export default function BettingSlip({ selectedBets, matches, onRemoveBet, onPlaceBet, isPlacing = false }: BettingSlipProps) {
   const [betAmount, setBetAmount] = useState<string>('');
 
   const getMatchById = (id: number) => matches.find(m => m.id === id);
 
   const calculateTotalOdds = () => {
-    // Mock odds calculation - in real implementation, fetch from contract or API
-    const baseOdds = {
-      [Result.TeamAWin]: 2.1,
-      [Result.Draw]: 3.2,
-      [Result.TeamBWin]: 2.8
-    };
-    
-    return selectedBets.reduce((total, bet) => {
-      return total * baseOdds[bet.prediction];
-    }, 1);
+    // Fixed 2x payout from contract
+    return 2.0;
   };
 
   const totalOdds = calculateTotalOdds();
@@ -84,6 +77,7 @@ export default function BettingSlip({ selectedBets, matches, onRemoveBet, onPlac
                   <button
                     onClick={() => onRemoveBet(bet.matchId)}
                     className="absolute top-2 right-2 text-slate-400 hover:text-white transition-colors"
+                    disabled={isPlacing}
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -97,8 +91,7 @@ export default function BettingSlip({ selectedBets, matches, onRemoveBet, onPlac
                       {resultLabels[bet.prediction]}
                     </Badge>
                     <span className="text-slate-300 text-sm font-semibold">
-                      {bet.prediction === Result.TeamAWin ? '2.1' : 
-                       bet.prediction === Result.Draw ? '3.2' : '2.8'}
+                      2.0x
                     </span>
                   </div>
                 </div>
@@ -107,8 +100,8 @@ export default function BettingSlip({ selectedBets, matches, onRemoveBet, onPlac
 
             <div className="border-t border-slate-600 pt-4 space-y-4">
               <div className="flex justify-between text-sm">
-                <span className="text-slate-400">Total Odds:</span>
-                <span className="text-white font-semibold">{totalOdds.toFixed(2)}</span>
+                <span className="text-slate-400">Payout Multiplier:</span>
+                <span className="text-white font-semibold">{totalOdds.toFixed(1)}x</span>
               </div>
 
               <div className="space-y-2">
@@ -121,6 +114,7 @@ export default function BettingSlip({ selectedBets, matches, onRemoveBet, onPlac
                   onChange={(e) => setBetAmount(e.target.value)}
                   placeholder="0.00"
                   className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
+                  disabled={isPlacing}
                 />
               </div>
 
@@ -143,10 +137,17 @@ export default function BettingSlip({ selectedBets, matches, onRemoveBet, onPlac
 
               <Button
                 onClick={handlePlaceBet}
-                disabled={!betAmount || selectedBets.length === 0}
+                disabled={!betAmount || selectedBets.length === 0 || isPlacing}
                 className="w-full bg-gradient-to-r from-emerald-500 to-blue-600 hover:from-emerald-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Place Bet ({selectedBets.length} selections)
+                {isPlacing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Placing Bet...
+                  </>
+                ) : (
+                  `Place Bet (${selectedBets.length} selections)`
+                )}
               </Button>
             </div>
           </div>
