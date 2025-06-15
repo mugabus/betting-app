@@ -1,11 +1,12 @@
 'use client';
 
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '@/lib/contract';
 import { Match, Bet, Result } from '@/types/contract';
 
 export function useVirtualFootballContract() {
+  const { address } = useAccount();
   const { writeContract, data: hash, isPending: isWritePending } = useWriteContract();
   
   const { isLoading: isConfirming, isSuccess: isConfirmed } = 
@@ -30,23 +31,45 @@ export function useVirtualFootballContract() {
     functionName: 'lastGeneratedTime',
   });
 
+  const { data: owner } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: CONTRACT_ABI,
+    functionName: 'owner',
+  });
+
   const { data: latestMatches, refetch: refetchMatches } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: CONTRACT_ABI,
     functionName: 'getLatestMatches',
-    args: [10n], // Get latest 10 matches
+    args: [20n], // Get latest 20 matches
   });
 
   // Write functions
-  const createAndSimulateMatches = async () => {
+  const createMatches = async () => {
     try {
       writeContract({
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
-        functionName: 'createAndSimulateMatches',
+        functionName: 'createMatches',
       });
     } catch (error) {
       console.error('Error creating matches:', error);
+      throw error;
+    }
+  };
+
+  const playMatches = async (matchIds: number[]) => {
+    try {
+      const matchIdsBigInt = matchIds.map(id => BigInt(id));
+      
+      writeContract({
+        address: CONTRACT_ADDRESS,
+        abi: CONTRACT_ABI,
+        functionName: 'playMatches',
+        args: [matchIdsBigInt],
+      });
+    } catch (error) {
+      console.error('Error playing matches:', error);
       throw error;
     }
   };
@@ -83,6 +106,20 @@ export function useVirtualFootballContract() {
     }
   };
 
+  const ownerWithdraw = async (amount: string) => {
+    try {
+      writeContract({
+        address: CONTRACT_ADDRESS,
+        abi: CONTRACT_ABI,
+        functionName: 'ownerWithdraw',
+        args: [parseEther(amount)],
+      });
+    } catch (error) {
+      console.error('Error withdrawing funds:', error);
+      throw error;
+    }
+  };
+
   // Helper functions
   const getTimeUntilNextGeneration = () => {
     if (!lastGeneratedTime) return 0;
@@ -93,6 +130,10 @@ export function useVirtualFootballContract() {
 
   const canGenerateMatches = () => {
     return getTimeUntilNextGeneration() === 0;
+  };
+
+  const isOwner = () => {
+    return address && owner && address.toLowerCase() === owner.toLowerCase();
   };
 
   // Transform contract data to frontend format
@@ -112,16 +153,26 @@ export function useVirtualFootballContract() {
     }));
   };
 
+  // Separate matches into played and unplayed
+  const allMatches = transformMatches(latestMatches || []);
+  const playedMatches = allMatches.filter(match => match.played);
+  const unplayedMatches = allMatches.filter(match => !match.played);
+
   return {
     // Data
     matchCounter: matchCounter ? Number(matchCounter) : 0,
     betCounter: betCounter ? Number(betCounter) : 0,
-    matches: transformMatches(latestMatches || []),
+    matches: allMatches,
+    playedMatches,
+    unplayedMatches,
+    owner: owner as string,
     
     // Functions
-    createAndSimulateMatches,
+    createMatches,
+    playMatches,
     placeBet,
     claimBet,
+    ownerWithdraw,
     refetchMatches,
     
     // State
@@ -133,6 +184,7 @@ export function useVirtualFootballContract() {
     // Helpers
     getTimeUntilNextGeneration,
     canGenerateMatches,
+    isOwner,
   };
 }
 

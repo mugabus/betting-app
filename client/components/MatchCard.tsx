@@ -3,14 +3,15 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Trophy } from 'lucide-react';
+import { Clock, Trophy, AlertCircle } from 'lucide-react';
 import { Match, Result, League } from '@/types/contract';
 
 interface MatchCardProps {
   match: Match;
-  onBet: (matchId: number, prediction: Result) => void;
+  onBet?: (matchId: number, prediction: Result) => void;
   selectedPrediction?: Result;
   bettingMode?: boolean;
+  showBettingButtons?: boolean;
 }
 
 const leagueColors = {
@@ -31,7 +32,13 @@ const resultLabels = {
   [Result.Draw]: 'Draw'
 };
 
-export default function MatchCard({ match, onBet, selectedPrediction, bettingMode = false }: MatchCardProps) {
+export default function MatchCard({ 
+  match, 
+  onBet, 
+  selectedPrediction, 
+  bettingMode = false, 
+  showBettingButtons = false 
+}: MatchCardProps) {
   const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString('en-US', {
       hour: '2-digit',
@@ -47,11 +54,11 @@ export default function MatchCard({ match, onBet, selectedPrediction, bettingMod
   };
 
   const getBettingOdds = () => {
-    // Mock odds - in real implementation, calculate based on historical data
+    // Fixed 2x payout from contract
     return {
-      [Result.TeamAWin]: 2.1,
-      [Result.Draw]: 3.2,
-      [Result.TeamBWin]: 2.8
+      [Result.TeamAWin]: 2.0,
+      [Result.Draw]: 2.0,
+      [Result.TeamBWin]: 2.0
     };
   };
 
@@ -61,9 +68,17 @@ export default function MatchCard({ match, onBet, selectedPrediction, bettingMod
     <Card className="bg-slate-800/30 border-slate-700 backdrop-blur-sm hover:bg-slate-800/50 transition-all duration-300">
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <Badge className={leagueColors[match.league]}>
-            {leagueNames[match.league]}
-          </Badge>
+          <div className="flex items-center space-x-2">
+            <Badge className={leagueColors[match.league]}>
+              {leagueNames[match.league]}
+            </Badge>
+            {!match.played && (
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                <AlertCircle className="w-3 h-3 mr-1" />
+                Pending
+              </Badge>
+            )}
+          </div>
           <div className="flex items-center text-slate-400 text-sm">
             <Clock className="w-4 h-4 mr-1" />
             {formatTime(match.startTime)}
@@ -82,7 +97,7 @@ export default function MatchCard({ match, onBet, selectedPrediction, bettingMod
             <div className="text-slate-400 text-sm text-center mb-2">
               {match.played ? 'FT' : 'VS'}
             </div>
-            {match.played && (
+            {match.played && match.result !== Result.NotSet && (
               <div className="flex items-center justify-center">
                 {getResultIcon(match.result)}
               </div>
@@ -97,7 +112,7 @@ export default function MatchCard({ match, onBet, selectedPrediction, bettingMod
           </div>
         </div>
 
-        {match.played && !bettingMode && (
+        {match.played && !bettingMode && match.result !== Result.NotSet && (
           <div className="flex justify-center">
             <Badge 
               className={`${
@@ -111,7 +126,7 @@ export default function MatchCard({ match, onBet, selectedPrediction, bettingMod
           </div>
         )}
 
-        {(!match.played || bettingMode) && (
+        {showBettingButtons && onBet && (
           <div className="grid grid-cols-3 gap-2">
             {[Result.TeamAWin, Result.Draw, Result.TeamBWin].map((result) => (
               <Button
@@ -129,10 +144,18 @@ export default function MatchCard({ match, onBet, selectedPrediction, bettingMod
                   <div className="text-xs opacity-80">
                     {result === Result.TeamAWin ? '1' : result === Result.Draw ? 'X' : '2'}
                   </div>
-                  <div className="font-semibold">{odds[result]}</div>
+                  <div className="font-semibold">{odds[result]}x</div>
                 </div>
               </Button>
             ))}
+          </div>
+        )}
+
+        {!match.played && !showBettingButtons && (
+          <div className="text-center">
+            <Badge className="bg-slate-700/50 text-slate-400 border-slate-600">
+              Match not played yet
+            </Badge>
           </div>
         )}
       </CardContent>

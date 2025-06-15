@@ -5,32 +5,37 @@ import { useAccount } from 'wagmi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Clock, TrendingUp, Users, RefreshCw } from 'lucide-react';
+import { Trophy, Clock, TrendingUp, Users, RefreshCw, Play, Plus } from 'lucide-react';
 import MatchCard from '@/components/MatchCard';
 import BettingSlip from '@/components/BettingSlip';
 import UserDashboard from '@/components/UserDashboard';
 import WalletConnect from '@/components/WalletConnect';
 import ContractStatus from '@/components/ContractStatus';
+import OwnerPanel from '@/components/OwnerPanel';
 import { useVirtualFootballContract } from '@/hooks/useContract';
 import { Match, Bet, Result, League } from '@/types/contract';
 
 export default function Home() {
   const { isConnected } = useAccount();
   const { 
-    matches, 
-    createAndSimulateMatches, 
+    matches,
+    playedMatches,
+    unplayedMatches,
+    createMatches,
+    playMatches,
     placeBet, 
     refetchMatches,
     isWritePending,
     isConfirming,
     isConfirmed,
     getTimeUntilNextGeneration,
-    canGenerateMatches
+    canGenerateMatches,
+    isOwner
   } = useVirtualFootballContract();
 
   const [selectedBets, setSelectedBets] = useState<{matchId: number, prediction: Result}[]>([]);
   const [userBets, setUserBets] = useState<Bet[]>([]);
-  const [activeTab, setActiveTab] = useState<'matches' | 'betting' | 'dashboard'>('matches');
+  const [activeTab, setActiveTab] = useState<'matches' | 'betting' | 'dashboard' | 'owner'>('matches');
   const [timeUntilNext, setTimeUntilNext] = useState(0);
 
   // Update countdown timer
@@ -57,12 +62,22 @@ export default function Home() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleGenerateMatches = async () => {
+  const handleCreateMatches = async () => {
     if (!canGenerateMatches) return;
     try {
-      await createAndSimulateMatches();
+      await createMatches();
     } catch (error) {
-      console.error('Failed to generate matches:', error);
+      console.error('Failed to create matches:', error);
+    }
+  };
+
+  const handlePlayAllMatches = async () => {
+    if (unplayedMatches.length === 0) return;
+    try {
+      const matchIds = unplayedMatches.map(m => m.id);
+      await playMatches(matchIds);
+    } catch (error) {
+      console.error('Failed to play matches:', error);
     }
   };
 
@@ -91,6 +106,9 @@ export default function Home() {
     }
   };
 
+  // Filter matches for betting (only unplayed matches)
+  const bettableMatches = unplayedMatches;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
@@ -114,20 +132,45 @@ export default function Home() {
                     <Clock className="w-4 h-4" />
                     <span>Next matches: {formatTime(timeUntilNext)}</span>
                   </div>
-                  <Button
-                    onClick={handleGenerateMatches}
-                    disabled={!canGenerateMatches || isWritePending || isConfirming}
-                    className="bg-gradient-to-r from-emerald-500 to-blue-600 hover:from-emerald-600 hover:to-blue-700 disabled:opacity-50"
-                  >
-                    {isWritePending || isConfirming ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        {isWritePending ? 'Confirming...' : 'Processing...'}
-                      </>
-                    ) : (
-                      'Generate Matches'
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      onClick={handleCreateMatches}
+                      disabled={!canGenerateMatches || isWritePending || isConfirming}
+                      className="bg-gradient-to-r from-emerald-500 to-blue-600 hover:from-emerald-600 hover:to-blue-700 disabled:opacity-50"
+                    >
+                      {isWritePending || isConfirming ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create Matches
+                        </>
+                      )}
+                    </Button>
+                    {unplayedMatches.length > 0 && (
+                      <Button
+                        onClick={handlePlayAllMatches}
+                        disabled={isWritePending || isConfirming}
+                        variant="outline"
+                        className="border-slate-600 text-slate-300 hover:bg-slate-700/50"
+                      >
+                        {isWritePending || isConfirming ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                            Playing...
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-4 h-4 mr-2" />
+                            Play All ({unplayedMatches.length})
+                          </>
+                        )}
+                      </Button>
                     )}
-                  </Button>
+                  </div>
                 </>
               )}
             </div>
@@ -159,7 +202,7 @@ export default function Home() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-white">{matches.length}</p>
-                    <p className="text-slate-400 text-sm">Available Matches</p>
+                    <p className="text-slate-400 text-sm">Total Matches</p>
                   </div>
                 </CardContent>
               </Card>
@@ -167,11 +210,11 @@ export default function Home() {
               <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
                 <CardContent className="flex items-center p-6">
                   <div className="rounded-full bg-blue-500/20 p-3 mr-4">
-                    <TrendingUp className="w-6 h-6 text-blue-400" />
+                    <Play className="w-6 h-6 text-blue-400" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-white">{selectedBets.length}</p>
-                    <p className="text-slate-400 text-sm">Selected Bets</p>
+                    <p className="text-2xl font-bold text-white">{unplayedMatches.length}</p>
+                    <p className="text-slate-400 text-sm">Unplayed Matches</p>
                   </div>
                 </CardContent>
               </Card>
@@ -179,11 +222,11 @@ export default function Home() {
               <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
                 <CardContent className="flex items-center p-6">
                   <div className="rounded-full bg-purple-500/20 p-3 mr-4">
-                    <Users className="w-6 h-6 text-purple-400" />
+                    <TrendingUp className="w-6 h-6 text-purple-400" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-white">2.0x</p>
-                    <p className="text-slate-400 text-sm">Payout Rate</p>
+                    <p className="text-2xl font-bold text-white">{selectedBets.length}</p>
+                    <p className="text-slate-400 text-sm">Selected Bets</p>
                   </div>
                 </CardContent>
               </Card>
@@ -203,10 +246,10 @@ export default function Home() {
 
             {/* Navigation Tabs */}
             <div className="flex space-x-1 mb-6 bg-slate-800/30 p-1 rounded-lg backdrop-blur-sm">
-              {(['matches', 'betting', 'dashboard'] as const).map((tab) => (
+              {(['matches', 'betting', 'dashboard', ...(isOwner() ? ['owner'] : [])] as const).map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => setActiveTab(tab as any)}
                   className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
                     activeTab === tab
                       ? 'bg-gradient-to-r from-emerald-500 to-blue-600 text-white shadow-lg'
@@ -224,10 +267,15 @@ export default function Home() {
                 {activeTab === 'matches' && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-xl font-bold text-white">Latest Matches</h2>
-                      <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                        Live Results
-                      </Badge>
+                      <h2 className="text-xl font-bold text-white">All Matches</h2>
+                      <div className="flex items-center space-x-2">
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                          {playedMatches.length} Played
+                        </Badge>
+                        <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+                          {unplayedMatches.length} Pending
+                        </Badge>
+                      </div>
                     </div>
                     
                     {matches.length === 0 ? (
@@ -236,14 +284,14 @@ export default function Home() {
                           <Trophy className="w-16 h-16 text-slate-400 mb-4" />
                           <h3 className="text-lg font-semibold text-white mb-2">No matches available</h3>
                           <p className="text-slate-400 text-sm text-center mb-4">
-                            Generate new matches to start betting
+                            Create new matches to get started
                           </p>
                           <Button
-                            onClick={handleGenerateMatches}
+                            onClick={handleCreateMatches}
                             disabled={!canGenerateMatches || isWritePending || isConfirming}
                             className="bg-gradient-to-r from-emerald-500 to-blue-600 hover:from-emerald-600 hover:to-blue-700"
                           >
-                            {isWritePending || isConfirming ? 'Generating...' : 'Generate Matches'}
+                            {isWritePending || isConfirming ? 'Creating...' : 'Create Matches'}
                           </Button>
                         </CardContent>
                       </Card>
@@ -254,6 +302,7 @@ export default function Home() {
                           match={match}
                           onBet={addToBettingSlip}
                           selectedPrediction={selectedBets.find(bet => bet.matchId === match.id)?.prediction}
+                          showBettingButtons={!match.played}
                         />
                       ))
                     )}
@@ -262,25 +311,32 @@ export default function Home() {
 
                 {activeTab === 'betting' && (
                   <div className="space-y-4">
-                    <h2 className="text-xl font-bold text-white mb-6">Place Your Bets</h2>
-                    {matches.length === 0 ? (
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-xl font-bold text-white">Place Your Bets</h2>
+                      <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+                        {bettableMatches.length} Available
+                      </Badge>
+                    </div>
+                    
+                    {bettableMatches.length === 0 ? (
                       <Card className="bg-slate-800/30 border-slate-700 backdrop-blur-sm">
                         <CardContent className="flex flex-col items-center justify-center py-12">
                           <Trophy className="w-16 h-16 text-slate-400 mb-4" />
-                          <h3 className="text-lg font-semibold text-white mb-2">No matches available</h3>
+                          <h3 className="text-lg font-semibold text-white mb-2">No matches available for betting</h3>
                           <p className="text-slate-400 text-sm text-center">
-                            Generate new matches to start betting
+                            Create new matches or wait for unplayed matches
                           </p>
                         </CardContent>
                       </Card>
                     ) : (
-                      matches.map((match) => (
+                      bettableMatches.map((match) => (
                         <MatchCard
                           key={match.id}
                           match={match}
                           onBet={addToBettingSlip}
                           selectedPrediction={selectedBets.find(bet => bet.matchId === match.id)?.prediction}
                           bettingMode={true}
+                          showBettingButtons={true}
                         />
                       ))
                     )}
@@ -290,13 +346,17 @@ export default function Home() {
                 {activeTab === 'dashboard' && (
                   <UserDashboard bets={userBets} matches={matches} />
                 )}
+
+                {activeTab === 'owner' && isOwner() && (
+                  <OwnerPanel />
+                )}
               </div>
 
               {/* Betting Slip Sidebar */}
               <div className="lg:col-span-1">
                 <BettingSlip
                   selectedBets={selectedBets}
-                  matches={matches}
+                  matches={bettableMatches}
                   onRemoveBet={removeFromBettingSlip}
                   onPlaceBet={handlePlaceBet}
                   isPlacing={isWritePending || isConfirming}
