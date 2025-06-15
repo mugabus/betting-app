@@ -43,21 +43,29 @@ contract VirtualAutoFootball {
     constructor() {
         // LaLiga Teams
         leagueTeams[uint(League.LaLiga)] = [
-            "Barcelona", "Real Madrid", "Atletico Madrid", "Sevilla", "Valencia",
-            "Villarreal", "Real Betis", "Athletic Club", "Real Sociedad", "Celta Vigo"
+           "Barcelona", "Real Madrid", "Atletico Madrid", "Sevilla", "Valencia",
+"Villarreal", "Real Betis", "Athletic Club", "Real Sociedad", "Celta Vigo",
+"Alaves", "Espanyol", "Getafe", "Girona", "Las Palmas",
+"Leganes", "Mallorca", "Osasuna", "Rayo Vallecano", "Real Valladolid"
         ];
 
         // Premier League Teams
         leagueTeams[uint(League.PremierLeague)] = [
-            "Arsenal", "Manchester City", "Liverpool", "Chelsea", "Manchester United",
-            "Tottenham", "Newcastle", "West Ham", "Aston Villa", "Brighton"
-        ];
+           "Arsenal", "Manchester City", "Liverpool", "Chelsea", "Manchester United",
+"Tottenham", "Newcastle", "West Ham", "Aston Villa", "Brighton",
+"Bournemouth", "Brentford", "Crystal Palace", "Everton", "Fulham",
+"Ipswich Town", "Leicester City", "Nottingham Forest", "Southampton", "Wolverhampton Wanderers"
+      ];
 
         // Serie A Teams
         leagueTeams[uint(League.SerieA)] = [
             "Juventus", "AC Milan", "Inter Milan", "Napoli", "Roma",
-            "Lazio", "Atalanta", "Fiorentina", "Torino", "Sassuolo"
-        ];
+"Lazio", "Atalanta", "Fiorentina", "Torino", "Sassuolo",
+"Atalanta", 
+"Bologna", "Cagliari", "Como", "Empoli",
+"Genoa", "Hellas Verona", "Lecce", "Monza", "Parma",
+"Udinese", "Venezia"
+     ];
 
         lastGeneratedTime = block.timestamp;
     }
